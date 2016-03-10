@@ -67,8 +67,8 @@ __ver_major__ = 0
 __ver_minor__ = 5
 __ver_patch__ = 1
 __ver_sub__ = ""
-__version__ = "%d.%d.%d%s" % (__ver_major__,__ver_minor__,__ver_patch__,__ver_sub__)
-
+__version__ = "%d.%d.%d%s" % (
+__ver_major__, __ver_minor__, __ver_patch__, __ver_sub__)
 
 import sys
 import re
@@ -76,7 +76,6 @@ import copy
 from xml.dom import minidom
 
 from dexml import fields
-
 
 if sys.version_info >= (3,):
     str = str                  #pragma: no cover
@@ -94,13 +93,16 @@ class Error(Exception):
     """Base exception class for the dexml module."""
     pass
 
+
 class ParseError(Error):
     """Exception raised when XML could not be parsed into objects."""
     pass
 
+
 class RenderError(Error):
     """Exception raised when object could not be rendered into XML."""
     pass
+
 
 class XmlError(Error):
     """Exception raised to encapsulate errors from underlying XML parser."""
@@ -110,15 +112,22 @@ class XmlError(Error):
 class PARSE_DONE:
     """Constant returned by a Field when it has finished parsing."""
     pass
+
+
 class PARSE_MORE:
     """Constant returned by a Field when it wants additional nodes to parse."""
     pass
+
+
 class PARSE_SKIP:
     """Constant returned by a Field when it cannot parse the given node."""
     pass
+
+
 class PARSE_CHILDREN:
     """Constant returned by a Field to parse children from its container tag."""
     pass
+
 
 class Meta:
     """Class holding meta-information about a dexml.Model subclass.
@@ -143,16 +152,16 @@ class Meta:
 
     """
 
-    _defaults = {"tagname":None,
-                 "namespace":None,
-                 "namespace_prefix":None,
-                 "ignore_unknown_elements":True,
-                 "case_sensitive":True,
-                 "order_sensitive":True}
+    _defaults = {"tagname": None,
+                 "namespace": None,
+                 "namespace_prefix": None,
+                 "ignore_unknown_elements": True,
+                 "case_sensitive": True,
+                 "order_sensitive": True}
 
-    def __init__(self,name,meta_attrs):
-        for (attr,default) in self._defaults.items():
-            setattr(self,attr,meta_attrs.get(attr,default))
+    def __init__(self, name, meta_attrs):
+        for (attr, default) in self._defaults.items():
+            setattr(self, attr, meta_attrs.get(attr, default))
         if self.tagname is None:
             self.tagname = name
 
@@ -163,7 +172,7 @@ def _meta_attributes(meta):
     if meta:
         for attr in dir(meta):
             if not attr.startswith("_"):
-                meta_attrs[attr] = getattr(meta,attr)
+                meta_attrs[attr] = getattr(meta, attr)
     return meta_attrs
 
 
@@ -178,26 +187,26 @@ class ModelMetaclass(type):
     instances_by_tagname = {}
     instances_by_classname = {}
 
-    def __new__(mcls,name,bases,attrs):
-        cls = super(ModelMetaclass,mcls).__new__(mcls,name,bases,attrs)
+    def __new__(mcls, name, bases, attrs):
+        cls = super(ModelMetaclass, mcls).__new__(mcls, name, bases, attrs)
         #  Don't do anything if it's not a subclass of Model
         parents = [b for b in bases if isinstance(b, ModelMetaclass)]
         if not parents:
             return cls
-        #  Set up the cls.meta object, inheriting from base classes
+        # Set up the cls.meta object, inheriting from base classes
         meta_attrs = {}
         for base in reversed(bases):
-            if isinstance(base,ModelMetaclass) and hasattr(base,"meta"):
+            if isinstance(base, ModelMetaclass) and hasattr(base, "meta"):
                 meta_attrs.update(_meta_attributes(base.meta))
-        meta_attrs.pop("tagname",None)
-        meta_attrs.update(_meta_attributes(attrs.get("meta",None)))
-        cls.meta = Meta(name,meta_attrs)
+        meta_attrs.pop("tagname", None)
+        meta_attrs.update(_meta_attributes(attrs.get("meta", None)))
+        cls.meta = Meta(name, meta_attrs)
         #  Create ordered list of field objects, telling each about their
         #  name and containing class.  Inherit fields from base classes
         #  only if not overridden on the class itself.
         base_fields = {}
         for base in bases:
-            if not isinstance(base,ModelMetaclass):
+            if not isinstance(base, ModelMetaclass):
                 continue
             for field in base._fields:
                 if field.field_name not in base_fields:
@@ -205,25 +214,25 @@ class ModelMetaclass(type):
                     field.model_class = cls
                     base_fields[field.field_name] = field
         cls_fields = []
-        for (name,value) in attrs.iteritems():
-            if isinstance(value,fields.Field):
-                base_fields.pop(name,None)
+        for (name, value) in attrs.iteritems():
+            if isinstance(value, fields.Field):
+                base_fields.pop(name, None)
                 value.field_name = name
                 value.model_class = cls
                 cls_fields.append(value)
         cls._fields = base_fields.values() + cls_fields
         cls._fields.sort(key=lambda f: f._order_counter)
         #  Register the new class so we can find it by name later on
-        tagname = (cls.meta.namespace,cls.meta.tagname)
+        tagname = (cls.meta.namespace, cls.meta.tagname)
         mcls.instances_by_tagname[tagname] = cls
         mcls.instances_by_classname[cls.__name__] = cls
         return cls
 
     @classmethod
-    def find_class(mcls,tagname,namespace=None):
+    def find_class(mcls, tagname, namespace=None):
         """Find dexml.Model subclass for the given tagname and namespace."""
         try:
-            return mcls.instances_by_tagname[(namespace,tagname)]
+            return mcls.instances_by_tagname[(namespace, tagname)]
         except KeyError:
             if namespace is None:
                 try:
@@ -233,9 +242,10 @@ class ModelMetaclass(type):
         return None
 
 
-#  You can use this re to extract the encoding declaration from the XML
+# You can use this re to extract the encoding declaration from the XML
 #  document string.  Hopefully you won't have to, but you might need to...
-_XML_ENCODING_RE = re.compile("<\\?xml [^>]*encoding=[\"']([a-zA-Z0-9\\.\\-\\_]+)[\"'][^>]*?>")
+_XML_ENCODING_RE = re.compile(
+    "<\\?xml [^>]*encoding=[\"']([a-zA-Z0-9\\.\\-\\_]+)[\"'][^>]*?>")
 
 
 class Model(object):
@@ -266,7 +276,7 @@ class Model(object):
     __metaclass__ = ModelMetaclass
     _fields = []
 
-    def __init__(self,**kwds):
+    def __init__(self, **kwds):
         """Default Model constructor.
 
         Keyword arguments that correspond to declared fields are processed
@@ -274,12 +284,12 @@ class Model(object):
         """
         for f in self._fields:
             try:
-                setattr(self,f.field_name,kwds[f.field_name])
+                setattr(self, f.field_name, kwds[f.field_name])
             except KeyError:
                 pass
 
     @classmethod
-    def parse(cls,xml):
+    def parse(cls, xml):
         """Produce an instance of this model from some xml.
 
         The given xml can be a string, a readable file-like object, or
@@ -293,36 +303,36 @@ class Model(object):
         #  Try to consume all the node's attributes
         attrs = node.attributes.values()
         for field in self._fields:
-            unused_attrs = field.parse_attributes(self,attrs)
+            unused_attrs = field.parse_attributes(self, attrs)
             if len(unused_attrs) < len(attrs):
                 fields_found.append(field)
             attrs = unused_attrs
         for attr in attrs:
             self._handle_unparsed_node(attr)
-        #  Try to consume all child nodes
+        # Try to consume all child nodes
         if self.meta.order_sensitive:
-            self._parse_children_ordered(node,self._fields,fields_found)
+            self._parse_children_ordered(node, self._fields, fields_found)
         else:
-            self._parse_children_unordered(node,self._fields,fields_found)
-        #  Check that all required fields have been found
+            self._parse_children_unordered(node, self._fields, fields_found)
+        # Check that all required fields have been found
         for field in self._fields:
             if field.required and field not in fields_found:
                 err = "required field not found: '%s'" % (field.field_name,)
                 raise ParseError(err)
             field.parse_done(self)
-        #  All done, return the instance so created
+        # All done, return the instance so created
         return self
 
-    def _parse_children_ordered(self,node,fields,fields_found):
+    def _parse_children_ordered(self, node, fields, fields_found):
         """Parse the children of the given node using strict field ordering."""
-        cur_field_idx = 0 
+        cur_field_idx = 0
         for child in node.childNodes:
             idx = cur_field_idx
             #  If we successfully break out of this loop, one of our
             #  fields has consumed the node.
             while idx < len(fields):
                 field = fields[idx]
-                res = field.parse_child_node(self,child)
+                res = field.parse_child_node(self, child)
                 if res is PARSE_DONE:
                     if field not in fields_found:
                         fields_found.append(field)
@@ -336,14 +346,14 @@ class Model(object):
                 if res is PARSE_CHILDREN:
                     if field not in fields_found:
                         fields_found.append(field)
-                    self._parse_children_ordered(child,[field],fields_found)
+                    self._parse_children_ordered(child, [field], fields_found)
                     cur_field_idx = idx
                     break
                 idx += 1
             else:
                 self._handle_unparsed_node(child)
 
-    def _parse_children_unordered(self,node,fields,fields_found):
+    def _parse_children_unordered(self, node, fields, fields_found):
         """Parse the children of the given node using loose field ordering."""
         done_fields = {}
         for child in node.childNodes:
@@ -355,7 +365,7 @@ class Model(object):
                     idx += 1
                     continue
                 field = fields[idx]
-                res = field.parse_child_node(self,child)
+                res = field.parse_child_node(self, child)
                 if res is PARSE_DONE:
                     done_fields[idx] = True
                     if field not in fields_found:
@@ -368,18 +378,18 @@ class Model(object):
                 if res is PARSE_CHILDREN:
                     if field not in fields_found:
                         fields_found.append(field)
-                    self._parse_children_unordered(child,[field],fields_found)
+                    self._parse_children_unordered(child, [field], fields_found)
                     break
                 idx += 1
             else:
                 self._handle_unparsed_node(child)
 
-    def _handle_unparsed_node(self,node):
+    def _handle_unparsed_node(self, node):
         if not self.meta.ignore_unknown_elements:
             if node.nodeType == node.ELEMENT_NODE:
                 err = "unknown element: %s" % (node.nodeName,)
                 raise ParseError(err)
-            elif node.nodeType in (node.TEXT_NODE,node.CDATA_SECTION_NODE):
+            elif node.nodeType in (node.TEXT_NODE, node.CDATA_SECTION_NODE):
                 if node.nodeValue.strip():
                     err = "unparsed text node: %s" % (node.nodeValue,)
                     raise ParseError(err)
@@ -388,7 +398,7 @@ class Model(object):
                     err = "unknown attribute: %s" % (node.name,)
                     raise ParseError(err)
 
-    def render(self,encoding=None,fragment=False,pretty=False,nsmap=None):
+    def render(self, encoding=None, fragment=False, pretty=False, nsmap=None):
         """Produce XML from this model's instance data.
 
         A unicode string will be returned if any of the objects contain
@@ -426,7 +436,7 @@ class Model(object):
             xml = xml.encode(encoding)
         return xml
 
-    def irender(self,encoding=None,fragment=False,nsmap=None):
+    def irender(self, encoding=None, fragment=False, nsmap=None):
         """Generator producing XML from this model's instance data.
 
         If any of the objects contain unicode values, the resulting output
@@ -447,14 +457,14 @@ class Model(object):
                 yield '<?xml version="1.0" ?>'
         if encoding:
             for data in self._render(nsmap):
-                if isinstance(data,unicode):
+                if isinstance(data, unicode):
                     data = data.encode(encoding)
                 yield data
         else:
             for data in self._render(nsmap):
                 yield data
 
-    def _render(self,nsmap):
+    def _render(self, nsmap):
         """Generator rendering this model as an XML fragment."""
         #  Determine opening and closing tags
         pushed_ns = False
@@ -467,27 +477,28 @@ class Model(object):
                 cur_ns = []
                 nsmap[prefix] = cur_ns
             if prefix:
-                tagname = "%s:%s" % (prefix,self.meta.tagname)
+                tagname = "%s:%s" % (prefix, self.meta.tagname)
                 open_tag_contents = [tagname]
                 if not cur_ns or cur_ns[0] != namespace:
-                    cur_ns.insert(0,namespace)
+                    cur_ns.insert(0, namespace)
                     pushed_ns = True
-                    open_tag_contents.append('xmlns:%s="%s"'%(prefix,namespace))
+                    open_tag_contents.append(
+                        'xmlns:%s="%s"' % (prefix, namespace))
                 close_tag_contents = tagname
             else:
                 open_tag_contents = [self.meta.tagname]
                 if not cur_ns or cur_ns[0] != namespace:
-                    cur_ns.insert(0,namespace)
+                    cur_ns.insert(0, namespace)
                     pushed_ns = True
-                    open_tag_contents.append('xmlns="%s"'%(namespace,))
+                    open_tag_contents.append('xmlns="%s"' % (namespace,))
                 close_tag_contents = self.meta.tagname
         else:
-            open_tag_contents = [self.meta.tagname] 
+            open_tag_contents = [self.meta.tagname]
             close_tag_contents = self.meta.tagname
         used_fields = set()
-        open_tag_contents.extend(self._render_attributes(used_fields,nsmap))
+        open_tag_contents.extend(self._render_attributes(used_fields, nsmap))
         #  Render each child node
-        children = self._render_children(used_fields,nsmap)
+        children = self._render_children(used_fields, nsmap)
         try:
             first_child = children.next()
         except StopIteration:
@@ -498,18 +509,18 @@ class Model(object):
             for child in children:
                 yield child
             yield "</%s>" % (close_tag_contents,)
-        #  Check that all required fields actually rendered something
+        # Check that all required fields actually rendered something
         for f in self._fields:
             if f.required and f not in used_fields:
                 raise RenderError("Field '%s' is missing" % (f.field_name,))
-        #  Clean up
+        # Clean up
         if pushed_ns:
             nsmap[prefix].pop(0)
 
-    def _render_attributes(self,used_fields,nsmap):
+    def _render_attributes(self, used_fields, nsmap):
         for f in self._fields:
-            val = getattr(self,f.field_name)
-            datas = iter(f.render_attributes(self,val,nsmap))
+            val = getattr(self, f.field_name)
+            datas = iter(f.render_attributes(self, val, nsmap))
             try:
                 data = datas.next()
             except StopIteration:
@@ -520,10 +531,10 @@ class Model(object):
                 for data in datas:
                     yield data
 
-    def _render_children(self,used_fields,nsmap):
+    def _render_children(self, used_fields, nsmap):
         for f in self._fields:
-            val = getattr(self,f.field_name)
-            datas = iter(f.render_children(self,val,nsmap))
+            val = getattr(self, f.field_name)
+            datas = iter(f.render_children(self, val, nsmap))
             try:
                 data = datas.next()
             except StopIteration:
@@ -540,12 +551,12 @@ class Model(object):
         try:
             ntype = xml.nodeType
         except AttributeError:
-            if isinstance(xml,bytes):
+            if isinstance(xml, bytes):
                 try:
                     xml = minidom.parseString(xml)
-                except Exception, e:
+                except Exception as e:
                     raise XmlError(e)
-            elif isinstance(xml,unicode):
+            elif isinstance(xml, unicode):
                 try:
                     #  Try to grab the "encoding" attribute from the XML.
                     #  It probably won't exist, so default to utf8.
@@ -555,12 +566,12 @@ class Model(object):
                     else:
                         encoding = encoding.group(1)
                     xml = minidom.parseString(xml.encode(encoding))
-                except Exception, e:
+                except Exception as e:
                     raise XmlError(e)
-            elif hasattr(xml,"read"):
+            elif hasattr(xml, "read"):
                 try:
                     xml = minidom.parse(xml)
-                except Exception, e:
+                except Exception as e:
                     raise XmlError(e)
             else:
                 raise ValueError("Can't convert that to an XML DOM node")
@@ -573,7 +584,7 @@ class Model(object):
         return node
 
     @classmethod
-    def validate_xml_node(cls,node):
+    def validate_xml_node(cls, node):
         """Check that the given xml node is valid for this object.
 
         Here 'valid' means that it is the right tag, in the right
@@ -586,25 +597,23 @@ class Model(object):
         if cls.meta.case_sensitive:
             if node.localName != cls.meta.tagname:
                 err = "Class '%s' got tag '%s' (expected '%s')"
-                err = err % (cls.__name__,node.localName,
+                err = err % (cls.__name__, node.localName,
                              cls.meta.tagname)
                 raise ParseError(err)
         else:
             if node.localName.lower() != cls.meta.tagname.lower():
                 err = "Class '%s' got tag '%s' (expected '%s')"
-                err = err % (cls.__name__,node.localName,
+                err = err % (cls.__name__, node.localName,
                              cls.meta.tagname)
                 raise ParseError(err)
         if cls.meta.namespace:
             if node.namespaceURI != cls.meta.namespace:
                 err = "Class '%s' got namespace '%s' (expected '%s')"
-                err = err % (cls.__name__,node.namespaceURI,
+                err = err % (cls.__name__, node.namespaceURI,
                              cls.meta.namespace)
                 raise ParseError(err)
         else:
             if node.namespaceURI:
                 err = "Class '%s' got namespace '%s' (expected no namespace)"
-                err = err % (cls.__name__,node.namespaceURI,)
+                err = err % (cls.__name__, node.namespaceURI,)
                 raise ParseError(err)
-
-
